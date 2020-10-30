@@ -36,13 +36,17 @@ init([]) ->
 
 %% State Callbacks
 uninitialized({call, From}, Bin, State) ->
-    {C0, C1Bin} = rtmp_handshake:decode_c0(Bin),
-    S0 = rtmp_handshake:encode_s0(C0#c0.version),
-    S1 = rtmp_handshake:encode_s1(0, crypto:strong_rand_bytes(1528)),
-    {NextState, MaybeS2, Additional} = maybe_c1(State#state.incomplete_data, C1Bin),
-    {next_state, NextState, State#state{incomplete_data = Additional}, [
-        {reply, From, [S0, S1, MaybeS2]}
-    ]}.
+    case rtmp_handshake:decode_c0(Bin) of
+        {ok, {C0, C1Bin}} ->
+            S0 = rtmp_handshake:encode_s0(C0#c0.version),
+            S1 = rtmp_handshake:encode_s1(0, crypto:strong_rand_bytes(1528)),
+            {NextState, MaybeS2, Additional} = maybe_c1(State#state.incomplete_data, C1Bin),
+            {next_state, NextState, State#state{incomplete_data = Additional}, [
+                {reply, From, {ok, [S0, S1, MaybeS2]}}
+            ]};
+        {error, {unknown_version, Vsn}} = Error ->
+            {stop_and_reply, unknown_version, [{reply, From, Error}]}
+    end.
 
 waiting_c1({call, From}, Bin, State) ->
     IncompleteData = State#state.incomplete_data,

@@ -5,25 +5,35 @@
 
 -include("rtmp_handshake.hrl").
 
--spec decode_c0(binary()) -> {#c0{}, binary()}.
+-spec decode_c0(binary()) -> {ok, {#c0{}, binary()}} |
+                             {error, {unknown_version, integer()}}.
 decode_c0(<<3, Rest/binary>>) ->
-    {#c0{version = 3}, Rest}.
+    {ok, {#c0{version = 3}, Rest}};
+decode_c0(<<Vsn, _Rest/binary>>) ->
+    {error, {unknown_version, Vsn}}.
 
 -spec encode_s0(integer()) -> binary().
 encode_s0(Version) ->
     <<Version:8>>.
 
--spec decode_c1(binary()) -> {#c1{}, binary()}.
+-spec decode_c1(binary()) -> {ok, {#c1{}, binary()}} |
+                             {error, {insufficient_data | bad_format, binary()}}.
+decode_c1(Bin) when byte_size(Bin) < 1536 ->
+    {error, {insufficient_data, Bin}};
 decode_c1(<<Time:32, 0:32, RandomBytes:1528/binary, Rest/binary>>) ->
-    {#c1{time = Time, random_bytes = RandomBytes}, Rest}.
+    {ok, {#c1{time = Time, random_bytes = RandomBytes}, Rest}};
+decode_c1(<<_Time:32, _Zero:32, _Rest/binary>> = Bin) ->
+    {error, {bad_format, Bin}}.
 
 -spec encode_s1(integer(), binary()) -> binary().
 encode_s1(Time, RandomBytes) ->
     <<Time:32, 0:32, RandomBytes/binary>>.
 
 -spec decode_c2(binary()) -> {#c2{}, binary()}.
+decode_c2(Bin) when byte_size(Bin) < 1536 ->
+    {error, {insufficient_data, Bin}};
 decode_c2(<<Time:32, Time2:32, Echo:1528/binary, Rest/binary>>) ->
-    {#c2{time = Time, time2 = Time2, random_echo = Echo}, Rest}.
+    {ok, {#c2{time = Time, time2 = Time2, random_echo = Echo}, Rest}}.
 
 -spec encode_s2(integer(), integer(), binary()) -> binary().
 encode_s2(Time, Time2, RandomEcho) ->
