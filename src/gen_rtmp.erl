@@ -44,7 +44,7 @@ uninitialized({call, From}, Bin, State) ->
             {next_state, NextState, State#state{incomplete_data = Additional}, [
                 {reply, From, {ok, [S0, S1, MaybeS2]}}
             ]};
-        {error, {unknown_version, Vsn}} = Error ->
+        {error, {unknown_version, _Vsn}} = Error ->
             {stop_and_reply, unknown_version, [{reply, From, Error}]}
     end.
 
@@ -66,7 +66,7 @@ waiting_c2({call, From}, Bin, State) ->
             {keep_state, State#state{incomplete_data = Full}, [{reply, From, []}]}
     end.
 
-awaiting_chunk({call, _From}, Bin, State) ->
+awaiting_chunk({call, _From}, _Bin, State) ->
     {keep_state, State}.
 
 %% uninitialized({call, From}, Bin, Data) ->
