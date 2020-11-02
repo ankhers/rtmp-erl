@@ -28,10 +28,10 @@ prop_can_decode_proper_c1() ->
 prop_cannot_decode_small_c1() ->
     ?FORALL(Bin,
             small_data(),
-            {error, {insufficient_data, Bin}} == rtmp_handshake:decode_c1(Bin)).
+            {error, insufficient_data} == rtmp_handshake:decode_c1(Bin)).
 
 prop_cannot_decode_bad_format_c1() ->
-    ?FORALL(Bin, bad_c1(), {error, {bad_format, Bin}} == rtmp_handshake:decode_c1(Bin)).
+    ?FORALL(Bin, bad_c1(), {error, bad_format} == rtmp_handshake:decode_c1(Bin)).
 
 prop_can_encode_s1() ->
     ?FORALL({Time, RandomBytes},
@@ -52,7 +52,7 @@ prop_can_decode_proper_c2() ->
 prop_cannot_decode_small_c2() ->
     ?FORALL(Bin,
             small_data(),
-            {error, {insufficient_data, Bin}} == rtmp_handshake:decode_c2(Bin)).
+            {error, insufficient_data} == rtmp_handshake:decode_c2(Bin)).
 
 prop_can_encode_s2() ->
     ?FORALL({Time, Time2, RandomBytes},

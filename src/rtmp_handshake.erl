@@ -17,21 +17,21 @@ encode_s0(Version) ->
     <<Version:8>>.
 
 -spec decode_c1(binary()) -> {ok, {#c1{}, binary()}} |
-                             {error, {insufficient_data | bad_format, binary()}}.
+                             {error, insufficient_data | bad_format}.
 decode_c1(Bin) when byte_size(Bin) < 1536 ->
-    {error, {insufficient_data, Bin}};
+    {error, insufficient_data};
 decode_c1(<<Time:32, 0:32, RandomBytes:1528/binary, Rest/binary>>) ->
     {ok, {#c1{time = Time, random_bytes = RandomBytes}, Rest}};
-decode_c1(<<_Time:32, _Zero:32, _Rest/binary>> = Bin) ->
-    {error, {bad_format, Bin}}.
+decode_c1(_Bin) ->
+    {error, bad_format}.
 
 -spec encode_s1(integer(), binary()) -> binary().
 encode_s1(Time, RandomBytes) ->
     <<Time:32, 0:32, RandomBytes/binary>>.
 
--spec decode_c2(binary()) -> {#c2{}, binary()}.
+-spec decode_c2(binary()) -> {ok, {#c2{}, binary()}} | {error, insufficient_data}.
 decode_c2(Bin) when byte_size(Bin) < 1536 ->
-    {error, {insufficient_data, Bin}};
+    {error, insufficient_data};
 decode_c2(<<Time:32, Time2:32, Echo:1528/binary, Rest/binary>>) ->
     {ok, {#c2{time = Time, time2 = Time2, random_echo = Echo}, Rest}}.
 
