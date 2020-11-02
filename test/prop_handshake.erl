@@ -11,7 +11,7 @@ prop_version_fails_on_version_other_than_3() ->
             integer_8bit_not_3(),
             begin
               Bin = <<Version>>,
-              {error, {unknown_version, Version}} == rtmp_handshake:decode_c0(Bin)
+              {error, unknown_version, Version} == rtmp_handshake:decode_c0(Bin)
             end).
 
 prop_can_encode_version() ->
@@ -21,7 +21,7 @@ prop_can_decode_proper_c1() ->
     ?FORALL({Time, Random, Full},
             c1(),
             begin
-              {ok, {C1, <<>>}} = rtmp_handshake:decode_c1(Full),
+              {ok, C1, <<>>} = rtmp_handshake:decode_c1(Full),
               C1#c1.time == Time andalso C1#c1.random_bytes == Random
             end).
 
@@ -45,7 +45,7 @@ prop_can_decode_proper_c2() ->
     ?FORALL({Time, Time2, Random, Full},
             c2(),
             begin
-              {ok, {C2, <<>>}} = rtmp_handshake:decode_c2(Full),
+              {ok, C2, <<>>} = rtmp_handshake:decode_c2(Full),
               C2#c2.time == Time andalso C2#c2.time2 == Time2 andalso C2#c2.random_echo == Random
             end).
 

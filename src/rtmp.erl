@@ -37,14 +37,18 @@ init([]) ->
 %% State Callbacks
 uninitialized({call, From}, Bin, State) ->
     case rtmp_handshake:decode_c0(Bin) of
-        {ok, {C0, C1Bin}} ->
+        {ok, C0, C1Bin} ->
             S0 = rtmp_handshake:encode_s0(C0#c0.version),
             S1 = rtmp_handshake:encode_s1(0, crypto:strong_rand_bytes(1528)),
-            {NextState, MaybeS2, Additional} = maybe_c1(State#state.incomplete_data, C1Bin),
-            {next_state, NextState, State#state{incomplete_data = Additional}, [
-                {reply, From, {ok, [S0, S1, MaybeS2]}}
-            ]};
-        {error, {unknown_version, _Vsn}} = Error ->
+            case maybe_c1(State#state.incomplete_data, C1Bin) of
+                {error, Reason} = Error ->
+                    {stop_and_reply, Reason, [{reply, From, Error}]};
+                {ok, NextState, MaybeS2, Additional} ->
+                    {next_state, NextState, State#state{incomplete_data = Additional}, [
+                        {reply, From, {ok, [S0, S1, MaybeS2]}}
+                    ]}
+            end;
+        {error, unknown_version, _Vsn} = Error ->
             {stop_and_reply, unknown_version, [{reply, From, Error}]}
     end.
 
@@ -52,7 +56,7 @@ waiting_c1({call, From}, Bin, State) ->
     IncompleteData = State#state.incomplete_data,
     Full = <<IncompleteData/binary, Bin/binary>>,
     case rtmp_handshake:decode_c1(Full) of
-        {ok, {C1, Rest}} ->
+        {ok, C1, Rest} ->
             S2 = rtmp_handshake:encode_s2(0, C1#c1.time, C1#c1.random_bytes),
             {next_state, waiting_c2, State#state{incomplete_data = Rest}, [{reply, From, {ok, S2}}]};
         {error, insufficient_data} ->
@@ -62,12 +66,10 @@ waiting_c1({call, From}, Bin, State) ->
 waiting_c2({call, From}, Bin, State) ->
     IncompleteData = State#state.incomplete_data,
     Full = <<IncompleteData/binary, Bin/binary>>,
-    case byte_size(Full) >= 1532 of
-        true ->
-            % TODO: Check that the echo is correct.
-            {_C2, Rest} = rtmp_handshake:decode_c2(Full),
+    case rtmp_handshake:decode_c2(Full) of
+        {ok, _C2, Rest} ->
             {next_state, awaiting_chunk, State#state{incomplete_data = Rest}, [{reply, From, ok}]};
-        false ->
+        {error, insufficient_data} ->
             {keep_state, State#state{incomplete_data = Full}, [{reply, From, ok}]}
     end.
 
@@ -93,10 +95,15 @@ awaiting_chunk({call, _From}, _Bin, State) ->
 %% Handle Events
 
 %% Private
--spec maybe_c1(binary(), binary()) -> {atom(), binary(), binary()}.
-maybe_c1(Incomplete, Bin) when byte_size(<<Incomplete/binary, Bin/binary>>) < 1536 ->
-    {waiting_c1, <<>>, <<Incomplete/binary, Bin/binary>>};
+-spec maybe_c1(binary(), binary()) -> {ok, atom(), binary(), binary()} | {error, atom()}.
 maybe_c1(Incomplete, Bin) ->
-    {C1, Rest} = rtmp_handshake:decode_c1(<<Incomplete/binary, Bin/binary>>),
-    S2 = rtmp_handshake:encode_s2(0, C1#c1.time, C1#c1.random_bytes),
-    {waiting_c2, S2, Rest}.
+    Full = <<Incomplete/binary, Bin/binary>>,
+    case rtmp_handshake:decode_c1(Full) of
+        {ok, C1, Rest} ->
+            S2 = rtmp_handshake:encode_s2(0, C1#c1.time, C1#c1.random_bytes),
+            {ok, waiting_c2, S2, Rest};
+        {error, insufficient_data} ->
+            {ok, waiting_c1, <<>>, <<Incomplete/binary, Bin/binary>>};
+        {error, bad_format} = Error ->
+            Error
+    end.
