@@ -73,24 +73,9 @@ waiting_c2({call, From}, Bin, State) ->
             {keep_state, State#state{incomplete_data = Full}, [{reply, From, ok}]}
     end.
 
-awaiting_chunk({call, _From}, _Bin, State) ->
+awaiting_chunk({call, _From}, Bin, State) ->
+    _ = rtmp_chunk:decode(Bin),
     {keep_state, State}.
-
-%% uninitialized({call, From}, Bin, Data) ->
-%%     {C0, C1Bin} = rtmp_handshake:decode_c0(Bin),
-%%     S0 = rtmp_handshake:encode_s0(C0#c0.version),
-%%     S1 = rtmp_handshake:encode_s1(0, crypto:strong_rand_bytes(50)),
-%%     {next_state, version_sent, Data, [{reply, From, {S0, S1}}]}.
-
-%% version_sent({call, From}, Bin, Data) ->
-%%     C1 = rtmp_handshake:decode_c1(Bin),
-%%     S2 = "something",
-%%     {next_state, ack_sent, Data, [{reply, From, S2}]}.
-
-%% ack_sent({call, From}, Bin, Data) ->
-%%     C2 = rtmp_handshake:decode_c2(Bin),
-%%     S3 = "foo",
-%%     {next_state, handshake_done, Data, [{reply, From, S3}]}.
 
 %% Handle Events
 
