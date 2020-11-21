@@ -69,20 +69,41 @@ waiting_c2({call, From}, Bin, State) ->
     Full = <<IncompleteData/binary, Bin/binary>>,
     case rtmp_handshake:decode_c2(Full) of
         {ok, _C2, Rest} ->
-            {next_state, awaiting_chunk, State#state{incomplete_data = Rest}, [{reply, From, ok}]};
+            {next_state, awaiting_chunk, State#state{incomplete_data = Rest}, [
+                {reply, From, {ok, []}}
+            ]};
         {error, insufficient_data} ->
             {keep_state, State#state{incomplete_data = Full}, [{reply, From, ok}]}
     end.
 
-awaiting_chunk({call, _From}, Bin, State) ->
-    case rtmp_chunk:decode(Bin) of
-        {#set_chunk_size{size = ChunkSize}, Rest} ->
-            {keep_state, State#state{incomplete_data = Rest, chunk_size = ChunkSize}}
-    end.
+awaiting_chunk({call, From}, Bin, State) ->
+    Full = <<(State#state.incomplete_data)/binary, Bin/binary>>,
+    {Responses, NewState} = decode_chunks(State, Full),
+    {keep_state, NewState, [{reply, From, {ok, Responses}}]}.
 
 %% Handle Events
 
 %% Private
+-spec decode_chunks(#state{}, binary()) -> {iolist(), #state{}}.
+decode_chunks(State, Bin) ->
+    decode_chunks(State, Bin, []).
+
+-spec decode_chunks(#state{}, binary(), iolist()) -> {iolist(), #state{}}.
+decode_chunks(State, Bin, Responses) ->
+    ChunkResponse =
+        case rtmp_chunk:decode(Bin) of
+            {#set_chunk_size{size = ChunkSize}, Rest0} ->
+                {continue, [], State#state{chunk_size = ChunkSize}, Rest0};
+            incomplete ->
+                halt
+        end,
+    case ChunkResponse of
+        {continue, Response, NewState, Rest} ->
+            decode_chunks(NewState, Rest, [Response | Responses]);
+        halt ->
+            {Responses, State#state{incomplete_data = Bin}}
+    end.
+
 -spec maybe_c1(binary(), binary()) -> {ok, atom(), binary(), binary()} | {error, atom()}.
 maybe_c1(Incomplete, Bin) ->
     Full = <<Incomplete/binary, Bin/binary>>,

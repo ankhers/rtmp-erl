@@ -1,18 +1,26 @@
+-type timestamp() :: non_neg_integer().
+-type message_length() :: non_neg_integer().
+-type message_type_id() :: non_neg_integer().
+-type message_stream_id() :: non_neg_integer().
+-type timestamp_delta() :: non_neg_integer().
+-type chunk_stream_id() :: non_neg_integer().
+-type format() :: non_neg_integer().
+
 -record(type0, {
-    timestamp :: non_neg_integer(),
-    message_length :: non_neg_integer(),
-    message_type_id :: non_neg_integer(),
-    message_stream_id :: non_neg_integer()
+    timestamp :: timestamp(),
+    message_length :: message_length(),
+    message_type_id :: message_type_id(),
+    message_stream_id :: message_stream_id()
 }).
 
 -record(type1, {
-    timestamp_delta :: non_neg_integer(),
-    message_length :: non_neg_integer(),
-    message_type_id :: non_neg_integer()
+    timestamp_delta :: timestamp_delta(),
+    message_length :: message_length(),
+    message_type_id :: message_type_id()
 }).
 
 -record(type2, {
-    timestamp_delta :: non_neg_integer()
+    timestamp_delta :: timestamp_delta()
 }).
 
 -record(type3, {}).
