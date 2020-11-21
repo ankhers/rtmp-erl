@@ -6,9 +6,10 @@
 -export([callback_mode/0, init/1]).
 -export([uninitialized/3, waiting_c1/3, waiting_c2/3, awaiting_chunk/3]).
 
+-include("rtmp_chunk.hrl").
 -include("rtmp_handshake.hrl").
 
--record(state, {incomplete_data :: binary()}).
+-record(state, {incomplete_data :: binary(), chunk_size :: non_neg_integer()}).
 
 %% The client MUST wait until S1 has been received before sending C2.
 %% The client MUST wait until S2 has been received before sending any other data.
@@ -32,7 +33,7 @@ callback_mode() -> state_functions.
 
 init([]) ->
     State = uninitialized,
-    {ok, State, #state{incomplete_data = <<>>}}.
+    {ok, State, #state{incomplete_data = <<>>, chunk_size = 128}}.
 
 %% State Callbacks
 uninitialized({call, From}, Bin, State) ->
@@ -74,8 +75,10 @@ waiting_c2({call, From}, Bin, State) ->
     end.
 
 awaiting_chunk({call, _From}, Bin, State) ->
-    _ = rtmp_chunk:decode(Bin),
-    {keep_state, State}.
+    case rtmp_chunk:decode(Bin) of
+        {#set_chunk_size{size = ChunkSize}, Rest} ->
+            {keep_state, State#state{incomplete_data = Rest, chunk_size = ChunkSize}}
+    end.
 
 %% Handle Events
 
